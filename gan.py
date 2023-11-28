@@ -1,7 +1,7 @@
 
 import numpy as np
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.optim as optim
 
 # Last Modified: CM 11/27
 class Generator(nn.Module):
@@ -63,11 +63,17 @@ class Discriminator(nn.Module):
         return x
 
 # TODO: Write a function that tests the Generator and Discriminator classes
-#def train():
+# Last Modified: CM 11/27
+def train(G, D):
+    d_learning_rate = 0.01
+    g_learning_rate = 0.01
+    d_optimizer = optim.SGD(D.parameters(), lr=d_learning_rate)
+    g_optimizer = optim.SGD(G.parameters(), lr=g_learning_rate)
 
 def main():
 	G = Generator(1, [1], 1)
 	D = Discriminator(1, [1])
+    train(G, D)
 
 if __name__ == "__main__":
     main()
