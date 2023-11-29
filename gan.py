@@ -19,7 +19,7 @@ class Generator(nn.Module):
 
         self.dropout = nn.Dropout(drop_prob)
         self.act = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
+        self.sigmoid = nn.Sigmoid() #activation function
 
     # Pytorch automatically handles backward for us once we have defined forward
     def forward(self, x):
