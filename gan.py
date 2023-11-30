@@ -64,6 +64,7 @@ class Discriminator(nn.Module):
         x = self.sigmoid(x)
         return x
 
+
 # TODO: Write a function that tests the Generator and Discriminator classes
 # Last Modified: CM 11/27
 def train(G, D):
