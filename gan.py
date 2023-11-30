@@ -57,13 +57,12 @@ def export_image(i, filename):
 
 
 def main():
-    # CHANGE THIS VARIABLE
+    # CHANGE THESES VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "dog"
+    animal_type = "corgi"
+    max_training_set_size = 60
 
     list_files = os.listdir(os.getcwd() + "/afhq/" + animal_type)
-    if animal_type == "dog":
-        list_files = list_files + os.listdir(os.getcwd() + "/afhq/corgi")
 
     list_files = natsorted(list_files)
     image_list = []
@@ -76,7 +75,7 @@ def main():
             image_list.append(image)
             export_image(image, animal_type + str(counter))
             counter += 1
-            if counter > 10:
+            if counter > max_training_set_size:
                 break
 
     G = GANNet([10, 128])
