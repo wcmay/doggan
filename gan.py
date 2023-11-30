@@ -50,6 +50,9 @@ def train(G, D, training_images):
     batch_size = 8
     loss = nn.MSELoss()
 
+    #G= GANNet(layer_sizes= batch_size, G_learning_rate, drop_prob= 0.0) #worrying about dropout yet?
+    #D = GANNet(layer_sizes= [1], D_learning_rate, drop_prob= 0.0) #learning_rate is not parameter of GANNet class
+
     torch_training_images = []
     for i in training_images:
         torch_training_images.append(torch.from_numpy(i))
