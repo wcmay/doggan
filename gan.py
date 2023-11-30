@@ -78,6 +78,8 @@ def train(G, D, training_images):
         true_data = sample(torch_training_images, batch_size)
 
         #Train Discriminator
+        
+        # Discriminator predictions for true and fake data
         true_data_D_out = D(true_data)
         fake_data_D_out = D(fake_data.detach())
         D_loss = loss(fake_data_D_out, false_labels) + loss(true_data_D_out, true_labels)
