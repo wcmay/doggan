@@ -7,7 +7,7 @@ import torch
 import skimage as ski
 from os import getcwd, listdir
 from natsort import natsorted, ns
-from random import sample 
+from random import sample, shuffle
 
 # Last Modified: CM 11/29
 class GANNet(nn.Module):
@@ -30,7 +30,8 @@ class GANNet(nn.Module):
 
     # Pytorch automatically handles backward for us once we have defined forward
     def forward(self, x):
-        for i in range(self.num_layers - 2):
+        x = x.float()
+        for i in range(self.num_layers - 1):
             l_0 = self.layers[i]
             x = l_0(x)
             x = self.act(x)
@@ -47,15 +48,13 @@ def train(G, D, training_images):
     D_learning_rate = 0.01
     G_learning_rate = 0.01
     max_epochs = 100
-    batch_size = 8
     loss = nn.MSELoss()
-
-    #G= GANNet(layer_sizes= batch_size, G_learning_rate, drop_prob= 0.0) #worrying about dropout yet?
-    #D = GANNet(layer_sizes= [1], D_learning_rate, drop_prob= 0.0) #learning_rate is not parameter of GANNet class
 
     torch_training_images = []
     for i in training_images:
         torch_training_images.append(torch.from_numpy(i))
+
+    training_set_size = len(training_images)
 
     D_optimizer = optim.SGD(D.parameters(), lr=D_learning_rate)
     G_optimizer = optim.SGD(G.parameters(), lr=G_learning_rate)
@@ -64,45 +63,51 @@ def train(G, D, training_images):
     G_mean_losses = []
     torch_fake_images = []
 
-    true_labels = torch.ones(batch_size).float()
-    false_labels = torch.zeros(batch_size).float()
+    true_labels = torch.ones(1)
+    false_labels = torch.zeros(1)
 
     for epoch in range(max_epochs):
-        G_optimizer.zero_grad()
-        D_optimizer.zero_grad()
 
-        # Generate fake images and sample true images
-        # Right now this is creating vectors of size batch_size with either the noise or randomly chosen image data
-        # That is not the right thing to do – this should be changed to be more like hw 4
-        # TODO: Fix
-        noise = torch.randn(size=(batch_size, G.layer_sizes[0]))
-        print(noise)
-        fake_data = G(noise)
-        true_data = sample(torch_training_images, batch_size)
+        indices = np.arange(training_set_size)
+        shuffle(indices)
 
-        #Train Discriminator
-        
-        # Discriminator predictions for true and fake data
-        true_data_D_out = D(true_data)
-        fake_data_D_out = D(fake_data.detach())
-        D_loss = loss(fake_data_D_out, false_labels) + loss(true_data_D_out, true_labels)
-        D_loss.backward()
-        D_optimizer.step()
+        for i in range(training_set_size):
+            G_optimizer.zero_grad()
+            D_optimizer.zero_grad()
+            # Generate fake image and sample true image
+            noise = torch.randn(G.layer_sizes[0])
+            fake_data = G(noise)
 
-        # Train Generator
-        fake_data_D_out = D(fake_data)
-        G_loss = loss(fake_data_D_out, true_labels)
-        G_loss.backward()
-        G_optimizer.step()
+            true_data = torch_training_images[indices[i]]
 
-        #Store data to evaluate efficacy of the model
-        #D_mean_losses.append(torch.mean(D_loss))
-        #G_mean_loss.append(torch.mean(G_loss))
+            #Train Discriminator
+            
+            # Discriminator predictions for true and fake data
+            true_data_D_out = D(true_data)
+            fake_data_D_out = D(fake_data.detach())
+            D_loss = loss(fake_data_D_out, false_labels) + loss(true_data_D_out, true_labels)
+            D_loss.backward()
+            D_optimizer.step()
 
-        export_image(fake_data[0].numpy(), 'gen_' + str(epoch))
+            # Train Generator
+            fake_data_D_out = D(fake_data)
+            G_loss = loss(fake_data_D_out, true_labels)
+            G_loss.backward()
+            G_optimizer.step()
 
-        print("Epoch 1: D Loss " + str(torch.mean(D_loss)) + ", G Loss " + str(torch.mean(G_loss)))
+            # print(str(epoch) + " D Fake Predict: " + str(fake_data_D_out))
+            # print(str(epoch) + " D Real Predict: " + str(true_data_D_out))
 
+            D_mean_losses.append(D_loss.item())
+            G_mean_losses.append(G_loss.item())
+
+            if i == training_set_size - 1:
+                torch_fake_images.append(fake_data.detach())
+
+        export_image(torch_fake_images[epoch].numpy(), 'gen_' + str(epoch))
+        export_image(torch_training_images[indices[0]].numpy(), 'true_' + str(epoch))
+
+        print("Epoch " + str(epoch) + ": D Loss " + str(torch.mean(D_loss.detach()).item()) + ", G Loss " + str(torch.mean(G_loss.detach()).item()))
 
 
 # Preconditions: 
@@ -122,7 +127,7 @@ def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
     animal_type = "corgi"
-    max_training_set_size = 12
+    max_training_set_size = 200
 
     list_files = listdir(getcwd() + "/afhq/" + animal_type)
 
