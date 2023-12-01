@@ -47,7 +47,7 @@ class GANNet(nn.Module):
 def train(G, D, training_images):
     D_learning_rate = 0.005
     G_learning_rate = 0.1
-    max_epochs = 100
+    max_epochs = 150
     loss = nn.BCELoss()
 
     torch_training_images = []
@@ -55,11 +55,13 @@ def train(G, D, training_images):
         torch_training_images.append(torch.from_numpy(i))
 
     training_set_size = len(training_images)
+    print("Training Set Size: " + str(training_set_size))
 
     D_optimizer = optim.SGD(D.parameters(), lr=D_learning_rate)
     G_optimizer = optim.SGD(G.parameters(), lr=G_learning_rate)
 
-    D_mean_losses = []
+    D_mean_true_losses = []
+    D_mean_fake_losses = []
     G_mean_losses = []
     torch_fake_images = []
 
@@ -70,6 +72,10 @@ def train(G, D, training_images):
 
         indices = np.arange(training_set_size)
         shuffle(indices)
+
+        D_epoch_mean_true_loss = 0.0
+        D_epoch_mean_fake_loss = 0.0
+        G_epoch_mean_loss = 0.0
 
         for i in range(training_set_size):
             G_optimizer.zero_grad()
@@ -85,7 +91,9 @@ def train(G, D, training_images):
             # Discriminator predictions for true and fake data
             true_data_D_out = D(true_data)
             fake_data_D_out = D(fake_data.detach())
-            D_loss = loss(fake_data_D_out, false_labels) + loss(true_data_D_out, true_labels)
+            D_true_loss = loss(true_data_D_out, true_labels)
+            D_fake_loss = loss(fake_data_D_out, false_labels)
+            D_loss = D_true_loss + D_fake_loss
             D_loss.backward()
             D_optimizer.step()
 
@@ -98,16 +106,23 @@ def train(G, D, training_images):
             # print(str(epoch) + " D Fake Predict: " + str(fake_data_D_out))
             # print(str(epoch) + " D Real Predict: " + str(true_data_D_out))
 
-            D_mean_losses.append(D_loss.detach().item())
-            G_mean_losses.append(G_loss.detach().item())
+            D_epoch_mean_true_loss += D_true_loss.detach().item()
+            D_epoch_mean_fake_loss += D_fake_loss.detach().item()
+            G_epoch_mean_loss += G_loss.detach().item()
 
             if i == training_set_size - 1:
                 torch_fake_images.append(fake_data.detach())
 
-        export_image(torch_fake_images[-1].numpy(), 'gen_' + str(epoch))
-        export_image(torch_training_images[indices[0]].numpy(), 'true_' + str(epoch))
+        export_image(torch_fake_images[-1].numpy(), 'gen_' + '{:03}'.format(epoch))
 
-        print("Epoch " + str(epoch) + ": D Loss " + str(D_mean_losses[-1]) + ", G Loss " + str(G_mean_losses[-1]))
+        D_mean_true_losses.append(D_epoch_mean_true_loss/training_set_size)
+        D_mean_fake_losses.append(D_epoch_mean_fake_loss/training_set_size)
+        G_mean_losses.append(G_epoch_mean_loss/training_set_size)
+
+        print("Epoch " + '{:03}'.format(epoch)
+                + ": DTL: " + '{:06.4f}'.format(D_mean_true_losses[-1])
+                + ", DFL: " + '{:06.4f}'.format(D_mean_fake_losses[-1])
+                + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1]))
 
         #for layer in G.layers:
         #    print(layer.weight)
@@ -130,7 +145,7 @@ def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
     animal_type = "corgi"
-    max_training_set_size = 100
+    max_training_set_size = 500
 
     list_files = listdir(getcwd() + "/afhq/" + animal_type)
 
