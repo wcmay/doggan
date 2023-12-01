@@ -20,7 +20,7 @@ class GANNet(nn.Module):
         self.layers = nn.ModuleList()
         self.num_layers = 0
         for i in range(len(layer_sizes) - 1):
-            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1], bias=False)) # TODO: wtf is bias?
+            self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1], bias=True))
             #nn.init.normal_(self.layers[i].weight) # Do we need this? (May be initializing weights)
             self.num_layers += 1
 
@@ -45,10 +45,10 @@ class GANNet(nn.Module):
 # TODO: Write a function that tests the Generator and Discriminator classes
 # Last Modified: CM 11/27
 def train(G, D, training_images):
-    D_learning_rate = 0.05
-    G_learning_rate = 0.01
+    D_learning_rate = 0.005
+    G_learning_rate = 0.1
     max_epochs = 100
-    loss = nn.MSELoss()
+    loss = nn.BCELoss()
 
     torch_training_images = []
     for i in training_images:
