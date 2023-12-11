@@ -13,7 +13,7 @@ from random import sample, shuffle
 class GANNet(nn.Module):
 
     # Layer sizes is a list of ints corresponding to the size of each layer
-    def __init__(self, layer_sizes, drop_prob = 0.0):
+    def __init__(self, layer_sizes, act, drop_prob = 0.0):
         super(GANNet, self).__init__()
 
         self.layer_sizes = layer_sizes
@@ -21,11 +21,10 @@ class GANNet(nn.Module):
         self.num_layers = 0
         for i in range(len(layer_sizes) - 1):
             self.layers.append(nn.Linear(layer_sizes[i], layer_sizes[i+1], bias=True))
-            #nn.init.normal_(self.layers[i].weight) # Do we need this? (May be initializing weights)
             self.num_layers += 1
 
         self.dropout = nn.Dropout(drop_prob)
-        self.act = nn.ReLU()
+        self.act = act
         self.sigmoid = nn.Sigmoid() #activation function
 
     # Pytorch automatically handles backward for us once we have defined forward
@@ -45,7 +44,7 @@ class GANNet(nn.Module):
 # TODO: Write a function that tests the Generator and Discriminator classes
 # Last Modified: CM 11/27
 def train(G, D, training_images):
-    D_learning_rate = 0.005
+    D_learning_rate = 0.01
     G_learning_rate = 0.1
     max_epochs = 150
     loss = nn.BCELoss()
@@ -57,8 +56,8 @@ def train(G, D, training_images):
     training_set_size = len(training_images)
     print("Training Set Size: " + str(training_set_size))
 
-    D_optimizer = optim.SGD(D.parameters(), lr=D_learning_rate)
-    G_optimizer = optim.SGD(G.parameters(), lr=G_learning_rate)
+    D_optimizer = optim.SGD(D.parameters(), lr=D_learning_rate, momentum = 0.6)
+    G_optimizer = optim.SGD(G.parameters(), lr=G_learning_rate, momentum = 0.6)
 
     D_mean_true_losses = []
     D_mean_fake_losses = []
@@ -83,19 +82,7 @@ def train(G, D, training_images):
             # Generate fake image and sample true image
             noise = torch.randn(G.layer_sizes[0])
             fake_data = G(noise)
-
             true_data = torch_training_images[indices[i]]
-
-            #Train Discriminator
-            
-            # Discriminator predictions for true and fake data
-            true_data_D_out = D(true_data)
-            fake_data_D_out = D(fake_data.detach())
-            D_true_loss = loss(true_data_D_out, true_labels)
-            D_fake_loss = loss(fake_data_D_out, false_labels)
-            D_loss = D_true_loss + D_fake_loss
-            D_loss.backward()
-            D_optimizer.step()
 
             # Train Generator
             fake_data_D_out = D(fake_data)
@@ -103,8 +90,20 @@ def train(G, D, training_images):
             G_loss.backward()
             G_optimizer.step()
 
-            # print(str(epoch) + " D Fake Predict: " + str(fake_data_D_out))
-            # print(str(epoch) + " D Real Predict: " + str(true_data_D_out))
+            #Train Discriminator
+            true_data_D_out = D(true_data)
+            fake_data_D_out = D(fake_data.detach())
+            D_true_loss = loss(true_data_D_out, true_labels)
+            D_fake_loss = loss(fake_data_D_out, false_labels)
+
+            D_true_loss.backward()
+            D_fake_loss.backward()
+            D_optimizer.step()
+            """
+            D_loss = (D_true_loss + D_fake_loss)
+            D_loss.backward()
+            D_optimizer.step()
+            """
 
             D_epoch_mean_true_loss += D_true_loss.detach().item()
             D_epoch_mean_fake_loss += D_fake_loss.detach().item()
@@ -114,6 +113,7 @@ def train(G, D, training_images):
                 torch_fake_images.append(fake_data.detach())
 
         export_image(torch_fake_images[-1].numpy(), 'gen_' + '{:03}'.format(epoch))
+        #export_image(training_images[indices[1]], 'true_' + '{:03}'.format(epoch))
 
         D_mean_true_losses.append(D_epoch_mean_true_loss/training_set_size)
         D_mean_fake_losses.append(D_epoch_mean_fake_loss/training_set_size)
@@ -136,7 +136,7 @@ def train(G, D, training_images):
 # Last Modified: CM 11/29
 def export_image(i, filename):
     image = i * 255
-    image = np.reshape(image, (128, 128))
+    image = np.reshape(image, (image_side_length, image_side_length))
     image = image.astype(np.uint8)
     ski.io.imsave(getcwd() + "/exported/" + filename + ".jpg", ski.color.gray2rgb(image), check_contrast=False)
 
@@ -144,8 +144,12 @@ def export_image(i, filename):
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "corgi"
-    max_training_set_size = 500
+    animal_type = "cat"
+    max_training_set_size = 600
+    global image_side_length
+    image_side_length = 128
+    gen_layers = [2, 512, 512, image_side_length*image_side_length]
+    disc_layers = [image_side_length*image_side_length, 512, 64, 1]
 
     list_files = listdir(getcwd() + "/afhq/" + animal_type)
 
@@ -155,18 +159,18 @@ def main():
     for filename in list_files:
         if ".jpg" in filename:
             image = ski.io.imread(getcwd() + "/afhq/" + animal_type + "/" + filename, as_gray = True)
-            # Scaling factor 0.25 –> convert 512x512 to 128x128
-            image = ski.transform.rescale(image, 0.25, anti_aliasing = True)
-            # Flatten matrix to vector of length 16384
+            # Scale image down to image_side_length
+            image = ski.transform.rescale(image, image_side_length/512.0, anti_aliasing = True)
+            # Flatten matrix to vector
             image = np.reshape(image, -1)
             image_list.append(image)
             #export_image(image, animal_type + str(counter))
             counter += 1
-            if counter > max_training_set_size:
+            if counter >= max_training_set_size:
                 break
 
-    G = GANNet([2, 100, 16384])
-    D = GANNet([16384, 100, 1])
+    G = GANNet(gen_layers, nn.ReLU())
+    D = GANNet(disc_layers, nn.LeakyReLU())
     train(G, D, image_list)
 
 if __name__ == "__main__":
