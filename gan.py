@@ -57,7 +57,7 @@ def train(G, D, training_images): #change batch_size as needed; batch_size: int 
     print("Training Set Size: " + str(training_set_size))
 
     D_optimizer = optim.SGD(D.parameters(), lr=D_learning_rate, momentum = 0.6)
-    G_optimizer = optim.SGD(G.parameters(), lr=G_learning_rate, momentum = 0.6)
+    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, momentum = 0.6) #ADAM INSTEAD!
 
     D_mean_true_losses = []
     D_mean_fake_losses = []
