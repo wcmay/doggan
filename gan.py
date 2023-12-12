@@ -43,7 +43,7 @@ class GANNet(nn.Module):
 
 # TODO: Write a function that tests the Generator and Discriminator classes
 # Last Modified: CM 11/27
-def train(G, D, batch_size: int = 16, training_images): #change batch_size as needed
+def train(G, D, training_images): #change batch_size as needed; batch_size: int = 16
     D_learning_rate = 0.01
     G_learning_rate = 0.1
     max_epochs = 150
