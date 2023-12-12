@@ -173,7 +173,7 @@ def main():
             if counter >= max_training_set_size:
                 break
 
-    G = GANNet(gen_layers, nn.ReLU())
+    G = GANNet(gen_layers, nn.LeakyReLU())
     D = GANNet(disc_layers, nn.LeakyReLU())
     train(G, D, image_list)
 
