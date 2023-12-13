@@ -40,11 +40,10 @@ class GANNet(nn.Module):
         x = self.final_act(x)
         return x
 
-
 # TODO: Write a function that tests the Generator and Discriminator classes
 # Last Modified: CM 11/27
 <<<<<<< Updated upstream
-def train(G, D, training_images): #change batch_size as needed; batch_size: int = 16
+def train(G, D, training_images, batch_size: int = 16): #change batch_size as needed
     D_learning_rate = 0.01
     G_learning_rate = 0.1
     max_epochs = 150
@@ -73,29 +72,21 @@ def train(G, D, training_images):
 <<<<<<< Updated upstream
     D_optimizer = optim.SGD(D.parameters(), lr=D_learning_rate, momentum = 0.6)
     G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, momentum = 0.6) #ADAM INSTEAD!
-=======
-    D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.5, 0.99))
-    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.5, 0.99))
->>>>>>> Stashed changes
 
     D_mean_true_losses = []
     D_mean_fake_losses = []
     G_mean_losses = []
     torch_fake_images = []
 
-<<<<<<< Updated upstream
     #may need to make these after we make the true data with batch size
     true_labels = torch.ones(1)
-=======
-    #true_labels = torch.ones(1)
->>>>>>> Stashed changes
     false_labels = torch.zeros(1)
 
     for epoch in range(max_epochs):
 
         #print("\nEPOCH " + str(epoch) + "\n")
 
-        indices = np.arange(training_set_size)
+        indices = np.arange(training_set_size) #changed
         shuffle(indices)
 
         D_epoch_mean_true_loss = 0.0
@@ -109,16 +100,11 @@ def train(G, D, training_images):
             true_labels = 1-torch.abs(torch.randn(1)*0.01) #very slightly noisy true labels
 
             # Generate fake image and sample true image
-<<<<<<< Updated upstream
             noise = torch.randn(G.layer_sizes[0]) #need to incorporate batch_size here
             #noise = torch.randint(0, 2, size=(batch_size, G.layer_sizes[0])).float() 
             fake_data = G(noise)
            
             # CHANGE with batch size- need to make new method?
-=======
-            noise = torch.randn(G.layer_sizes[0])
-            fake_data = G(noise).to(device)
->>>>>>> Stashed changes
             true_data = torch_training_images[indices[i]]
 
             # Train Generator
