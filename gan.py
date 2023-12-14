@@ -43,13 +43,13 @@ class GANNet(nn.Module):
 # TODO: Write a function that tests the Generator and Discriminator classes
 def train(G, D, training_images, batch_size: int = 16): #change batch_size as needed
     
-    for i in training_images:
-        i = (2.0*i)-1.0
+    #for i in training_images:
+    #    i = (2.0*i)-1.0
     training_set_size = len(training_images)
 
     dataloader = DataLoader(training_images, batch_size=batch_size, shuffle=True)
 
-    D_learning_rate = 0.0002
+    D_learning_rate = 0.0001
     G_learning_rate = 0.00005
 
     max_epochs = 201
@@ -61,16 +61,14 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
     G = G.to(device)
     D = D.to(device)
 
-    D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.5, 0.99))
-    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.5, 0.99))
+    D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.0, 0.99))
+    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.0, 0.99))
 
     D_mean_true_losses = []
     D_mean_fake_losses = []
     G_mean_losses = []
     #torch_fake_images = []
     
-    # true_labels = torch.ones((batch_size, 1), device=device)
-    true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.01)
     false_labels = torch.zeros((batch_size, 1), device=device)
 
     for epoch in range(max_epochs):
@@ -83,10 +81,12 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
         num_images_trained = 0
 
         for i, data in enumerate(dataloader):
+
+            true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.02)
             
             # Generate fake image and sample true image
             #Does not need to include last few images outside of batch_size constraints
-            true_data = data.to(device)
+            true_data = (data.to(device)*2.0)-1.0
             if true_data.size(0) != batch_size:
                 break
             noise = torch.randn(batch_size, G.layer_sizes[0], device=device)
@@ -143,12 +143,11 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
 
         if epoch % 5 == 0:
             G.eval() #sets generator to evaluation mode
-            export_image(sample(training_images, 1)[0], 'true_' + '{:03}'.format(epoch))
             with torch.no_grad():
                 for i in range(5):
                     noise = torch.randn(G.layer_sizes[0])
                     fake_data = G(noise).detach()
-                    export_image(0.5*((fake_data.numpy())+1.0), 'gen_' + '{:03}'.format(epoch) + '_' + '{:02}'.format(i))
+                    export_image(0.5*(fake_data.numpy()+1.0), 'gen_' + '{:03}'.format(epoch) + '_' + '{:02}'.format(i))
 
 
         D_mean_true_losses.append(D_epoch_mean_true_loss/num_images_trained)
@@ -176,12 +175,12 @@ def export_image(i, filename):
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "corgi"
-    max_training_set_size = 600
+    animal_type = "cat"
+    max_training_set_size = 4000
     global image_side_length
     image_side_length = 128
     gen_layers = [32, 512, 512, image_side_length*image_side_length]
-    disc_layers = [image_side_length*image_side_length, 512, 256, 64, 1]
+    disc_layers = [image_side_length*image_side_length, 512, 128, 64, 1]
 
     list_files = listdir(getcwd() + "/afhq/" + animal_type)
 
@@ -202,7 +201,7 @@ def main():
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.0)
-    train(G, D, image_list)
+    train(G, D, image_list, batch_size = 16)
 
 if __name__ == "__main__":
     main() 
