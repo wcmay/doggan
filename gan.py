@@ -10,7 +10,6 @@ from os import getcwd, listdir
 from natsort import natsorted, ns
 from random import sample, shuffle
 
-# Last Modified: CM 11/29
 class GANNet(nn.Module):
 
     # Layer sizes is a list of ints corresponding to the size of each layer
@@ -42,15 +41,17 @@ class GANNet(nn.Module):
         return x
 
 # TODO: Write a function that tests the Generator and Discriminator classes
-# Last Modified: CM 11/27
 def train(G, D, training_images, batch_size: int = 16): #change batch_size as needed
     
+    for i in training_images:
+        i = (2.0*i)-1.0
+    training_set_size = len(training_images)
+
     dataloader = DataLoader(training_images, batch_size=batch_size, shuffle=True)
 
-    training_set_size = len(training_images)
-   
-    D_learning_rate = 0.001
-    G_learning_rate = 0.0001
+    D_learning_rate = 0.0002
+    G_learning_rate = 0.00005
+
     max_epochs = 201
     loss = nn.BCELoss()
 
@@ -60,29 +61,13 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
     G = G.to(device)
     D = D.to(device)
 
-    # t = []
-    # # Normalizing values
-    # for i in training_images:
-    #     t.append((2.0 * torch.from_numpy(i).to(device))-1.0)
-    # training_set_size = len(t)
-    # torch_training_images = torch.Tensor(t,dtype=torch.int)
-
-    # print("Training Set Size: " + str(training_set_size))
-    # torch_training_images = torch.Tensor(training_set_size, D.layer_sizes[0])
-    # print(torch_training_images.size())
-    # print(len(t))
-    # torch_training_images = torch.cat(t).float()
-
-    D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.5,0.99))
-    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.5,0.99))
+    D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.5, 0.99))
+    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.5, 0.99))
 
     D_mean_true_losses = []
     D_mean_fake_losses = []
     G_mean_losses = []
     #torch_fake_images = []
-
-    #may need to make these after we make the true data with batch size
-    #true_labels = torch.ones(batch_size)
     
     # true_labels = torch.ones((batch_size, 1), device=device)
     true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.01)
@@ -92,37 +77,26 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
 
         #print("\nEPOCH " + str(epoch) + "\n")
 
-        # indices = np.arange(training_set_size) #changed
-        # #shuffle(indices)
-
         D_epoch_mean_true_loss = 0.0
         D_epoch_mean_fake_loss = 0.0
         G_epoch_mean_loss = 0.0
+        num_images_trained = 0
 
-        #for i in range(int(training_set_size/batch_size)):
         for i, data in enumerate(dataloader):
             
-            true_data = data.to(device)
+            # Generate fake image and sample true image
             #Does not need to include last few images outside of batch_size constraints
+            true_data = data.to(device)
             if true_data.size(0) != batch_size:
                 break
-            #print(true_data[1].size())
+            noise = torch.randn(batch_size, G.layer_sizes[0], device=device)
+            fake_data = G(noise)
+
+            num_images_trained += 1
 
             G_optimizer.zero_grad()
             D_optimizer.zero_grad()
             G.train() #sets generator to training mode
-            # true_labels = torch.reshape(1-torch.abs(torch.randn(batch_size)*0.01), (16,1)) #very slightly noisy true labels
-
-            # Generate fake image and sample true image
-            #noise = torch.randn(G.layer_sizes[0]) #need to incorporate batch_size here
-            #noise = torch.randn(batch_size)
-            noise = torch.randn(batch_size, G.layer_sizes[0], device=device)
-            #noise = torch.randint(0, 2, size=(batch_size, G.layer_sizes[0])).float() 
-            fake_data = G(noise)
-           
-            # true_data = torch_training_images[indices[i*batch_size]:indices[(i+1)*batch_size]]
-            # #torch.FloatTensor(
-            # print(true_data.size())
 
             # Train Generator
             fake_data_D_out = D(fake_data)
@@ -135,9 +109,9 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
             fake_data_D_out = D(fake_data.detach())
             D_true_loss = loss(true_data_D_out, true_labels)
             D_fake_loss = loss(fake_data_D_out, false_labels)
-
-            D_loss = (D_true_loss + D_fake_loss)*0.5
-            D_loss.backward()
+            # Doing the backprops individually seems to make a Significant difference
+            D_true_loss.backward()
+            D_fake_loss.backward()
             D_optimizer.step()
 
             """
@@ -153,14 +127,12 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
                 D_loss.backward()
                 D_optimizer.step()
             """
-
-
             """
             if (i%int(training_set_size/5) == 0):
                 print("Image " + str(i))
-                print("\tTrue Prediction: "+str(true_data_D_out.item()))
+                print("\tTrue Prediction: "+str(true_data_D_out[-1]))
                 print("\tTrue Loss: "+str(D_true_loss.item()))
-                print("\tFake Prediction: "+str(fake_data_D_out.item()))
+                print("\tFake Prediction: "+str(fake_data_D_out[-1]))
                 print("\tFake Loss: "+str(D_fake_loss.item()))
                 print()
             """
@@ -169,11 +141,9 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
             D_epoch_mean_fake_loss += D_fake_loss.detach().item()
             G_epoch_mean_loss += G_loss.detach().item()
 
-            #if i == training_set_size - 1:
-            #    torch_fake_images.append(fake_data.detach())
-
         if epoch % 5 == 0:
             G.eval() #sets generator to evaluation mode
+            export_image(sample(training_images, 1)[0], 'true_' + '{:03}'.format(epoch))
             with torch.no_grad():
                 for i in range(5):
                     noise = torch.randn(G.layer_sizes[0])
@@ -181,19 +151,14 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
                     export_image(0.5*((fake_data.numpy())+1.0), 'gen_' + '{:03}'.format(epoch) + '_' + '{:02}'.format(i))
 
 
-        #export_image(training_images[indices[1]], 'true_' + '{:03}'.format(epoch))
-
-        D_mean_true_losses.append(D_epoch_mean_true_loss/training_set_size)
-        D_mean_fake_losses.append(D_epoch_mean_fake_loss/training_set_size)
-        G_mean_losses.append(G_epoch_mean_loss/training_set_size)
+        D_mean_true_losses.append(D_epoch_mean_true_loss/num_images_trained)
+        D_mean_fake_losses.append(D_epoch_mean_fake_loss/num_images_trained)
+        G_mean_losses.append(G_epoch_mean_loss/num_images_trained)
 
         print("Epoch " + '{:03}'.format(epoch)
                 + ": DTL: " + '{:06.4f}'.format(D_mean_true_losses[-1])
                 + ", DFL: " + '{:06.4f}'.format(D_mean_fake_losses[-1])
                 + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1]))
-
-        #for layer in G.layers:
-        #    print(layer.weight)
 
 
 # Preconditions: 
@@ -201,7 +166,6 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
 #    - i must be NUMPY format
 #    - filename is a string, do not include .jpg in filename
 # Exported images will end up in the "exported" folder
-# Last Modified: CM 11/29
 def export_image(i, filename):
     image = i * 255
     image = np.reshape(image, (image_side_length, image_side_length))
@@ -216,8 +180,8 @@ def main():
     max_training_set_size = 600
     global image_side_length
     image_side_length = 128
-    gen_layers = [32, 256, 512, image_side_length*image_side_length]
-    disc_layers = [image_side_length*image_side_length, 512, 128, 64, 1]
+    gen_layers = [32, 512, 512, image_side_length*image_side_length]
+    disc_layers = [image_side_length*image_side_length, 512, 256, 64, 1]
 
     list_files = listdir(getcwd() + "/afhq/" + animal_type)
 
@@ -232,14 +196,13 @@ def main():
             # Flatten matrix to vector
             image = np.reshape(image, -1)
             image_list.append(image)
-            #export_image(image, animal_type + str(counter))
             counter += 1
             if counter >= max_training_set_size:
                 break
 
-    G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh())
-    D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid())
+    G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
+    D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.0)
     train(G, D, image_list)
 
 if __name__ == "__main__":
-    main()
+    main() 
