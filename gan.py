@@ -3,6 +3,7 @@ import matplotlib
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 import torch
 import skimage as ski
 from os import getcwd, listdir
@@ -42,18 +43,15 @@ class GANNet(nn.Module):
 
 # TODO: Write a function that tests the Generator and Discriminator classes
 # Last Modified: CM 11/27
-<<<<<<< Updated upstream
 def train(G, D, training_images, batch_size: int = 16): #change batch_size as needed
-    D_learning_rate = 0.01
-    G_learning_rate = 0.1
-    max_epochs = 150
-=======
-def train(G, D, training_images):
+    
+    dataloader = DataLoader(training_images, batch_size=batch_size, shuffle=True)
+
+    training_set_size = len(training_images)
+   
     D_learning_rate = 0.001
     G_learning_rate = 0.0001
-
     max_epochs = 201
->>>>>>> Stashed changes
     loss = nn.BCELoss()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -62,50 +60,69 @@ def train(G, D, training_images):
     G = G.to(device)
     D = D.to(device)
 
-    torch_training_images = []
-    for i in training_images:
-        torch_training_images.append((2.0 * torch.from_numpy(i).to(device))-1.0)
+    # t = []
+    # # Normalizing values
+    # for i in training_images:
+    #     t.append((2.0 * torch.from_numpy(i).to(device))-1.0)
+    # training_set_size = len(t)
+    # torch_training_images = torch.Tensor(t,dtype=torch.int)
 
-    training_set_size = len(training_images)
-    print("Training Set Size: " + str(training_set_size))
+    # print("Training Set Size: " + str(training_set_size))
+    # torch_training_images = torch.Tensor(training_set_size, D.layer_sizes[0])
+    # print(torch_training_images.size())
+    # print(len(t))
+    # torch_training_images = torch.cat(t).float()
 
-<<<<<<< Updated upstream
-    D_optimizer = optim.SGD(D.parameters(), lr=D_learning_rate, momentum = 0.6)
-    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, momentum = 0.6) #ADAM INSTEAD!
+    D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.5,0.99))
+    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.5,0.99))
 
     D_mean_true_losses = []
     D_mean_fake_losses = []
     G_mean_losses = []
-    torch_fake_images = []
+    #torch_fake_images = []
 
     #may need to make these after we make the true data with batch size
-    true_labels = torch.ones(1)
-    false_labels = torch.zeros(1)
+    #true_labels = torch.ones(batch_size)
+    
+    # true_labels = torch.ones((batch_size, 1), device=device)
+    true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.01)
+    false_labels = torch.zeros((batch_size, 1), device=device)
 
     for epoch in range(max_epochs):
 
         #print("\nEPOCH " + str(epoch) + "\n")
 
-        indices = np.arange(training_set_size) #changed
-        shuffle(indices)
+        # indices = np.arange(training_set_size) #changed
+        # #shuffle(indices)
 
         D_epoch_mean_true_loss = 0.0
         D_epoch_mean_fake_loss = 0.0
         G_epoch_mean_loss = 0.0
 
-        for i in range(training_set_size):
+        #for i in range(int(training_set_size/batch_size)):
+        for i, data in enumerate(dataloader):
+            
+            true_data = data.to(device)
+            #Does not need to include last few images outside of batch_size constraints
+            if true_data.size(0) != batch_size:
+                break
+            #print(true_data[1].size())
+
             G_optimizer.zero_grad()
             D_optimizer.zero_grad()
             G.train() #sets generator to training mode
-            true_labels = 1-torch.abs(torch.randn(1)*0.01) #very slightly noisy true labels
+            # true_labels = torch.reshape(1-torch.abs(torch.randn(batch_size)*0.01), (16,1)) #very slightly noisy true labels
 
             # Generate fake image and sample true image
-            noise = torch.randn(G.layer_sizes[0]) #need to incorporate batch_size here
+            #noise = torch.randn(G.layer_sizes[0]) #need to incorporate batch_size here
+            #noise = torch.randn(batch_size)
+            noise = torch.randn(batch_size, G.layer_sizes[0], device=device)
             #noise = torch.randint(0, 2, size=(batch_size, G.layer_sizes[0])).float() 
             fake_data = G(noise)
            
-            # CHANGE with batch size- need to make new method?
-            true_data = torch_training_images[indices[i]]
+            # true_data = torch_training_images[indices[i*batch_size]:indices[(i+1)*batch_size]]
+            # #torch.FloatTensor(
+            # print(true_data.size())
 
             # Train Generator
             fake_data_D_out = D(fake_data)
@@ -195,7 +212,7 @@ def export_image(i, filename):
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "cat"
+    animal_type = "corgi"
     max_training_set_size = 600
     global image_side_length
     image_side_length = 128
@@ -220,13 +237,8 @@ def main():
             if counter >= max_training_set_size:
                 break
 
-<<<<<<< Updated upstream
-    G = GANNet(gen_layers, nn.LeakyReLU())
-    D = GANNet(disc_layers, nn.LeakyReLU())
-=======
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh())
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid())
->>>>>>> Stashed changes
     train(G, D, image_list)
 
 if __name__ == "__main__":
