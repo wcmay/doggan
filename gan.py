@@ -41,7 +41,7 @@ class GANNet(nn.Module):
         return x
 
 # TODO: Write a function that tests the Generator and Discriminator classes
-def train(G, D, training_images, batch_size: int = 16): #change batch_size as needed
+def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 16): #change batch_size as needed
     
     #for i in training_images:
     #    i = (2.0*i)-1.0
@@ -79,13 +79,15 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
         D_epoch_mean_fake_loss = 0.0
         G_epoch_mean_loss = 0.0
         num_images_trained = 0
+        batch_pixel = 0
+        epoch_pixel = 0
 
         for i, data in enumerate(dataloader):
 
             true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.02)
             
             # Generate fake image and sample true image
-            #Does not need to include last few images outside of batch_size constraints
+            # Does not need to include last few images outside of batch_size constraints
             true_data = (data.to(device)*2.0)-1.0
             if true_data.size(0) != batch_size:
                 break
@@ -93,6 +95,11 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
             fake_data = G(noise)
 
             num_images_trained += 1
+
+            for i in range(batch_size):
+                batch_pixel += (fake_data[i].detach().cpu().numpy()).astype("float")
+            batch_pixel /= batch_size
+            epoch_pixel += batch_pixel
 
             G_optimizer.zero_grad()
             D_optimizer.zero_grad()
@@ -153,11 +160,13 @@ def train(G, D, training_images, batch_size: int = 16): #change batch_size as ne
         D_mean_true_losses.append(D_epoch_mean_true_loss/num_images_trained)
         D_mean_fake_losses.append(D_epoch_mean_fake_loss/num_images_trained)
         G_mean_losses.append(G_epoch_mean_loss/num_images_trained)
+        epoch_pixel /= (training_set_size/batch_size)
 
         print("Epoch " + '{:03}'.format(epoch)
                 + ": DTL: " + '{:06.4f}'.format(D_mean_true_losses[-1])
                 + ", DFL: " + '{:06.4f}'.format(D_mean_fake_losses[-1])
-                + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1]))
+                + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1])
+                + ", PID: " + '{:06.4f}'.format(image_mse(avg_pxl, epoch_pixel, image_side_length))) #PID = pixel intensity difference
 
 
 # Preconditions: 
@@ -171,11 +180,17 @@ def export_image(i, filename):
     image = image.astype(np.uint8)
     ski.io.imsave(getcwd() + "/exported/" + filename + ".jpg", ski.color.gray2rgb(image), check_contrast=False)
 
+# Comparing pixel intensities of images
+def image_mse(avg_pxl, fake_batch_pics, image_side_length):
+	diff = np.sum((avg_pxl.astype("float") - fake_batch_pics.astype("float")) ** 2)
+	diff /= float(image_side_length ** 2)
+	# lower error is more "similar" in pixel intensity
+	return diff
 
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "cat"
+    animal_type = "corgi"
     max_training_set_size = 4000
     global image_side_length
     image_side_length = 128
@@ -187,6 +202,8 @@ def main():
     list_files = natsorted(list_files)
     image_list = []
     counter = 0
+    pixelation = 0
+
     for filename in list_files:
         if ".jpg" in filename:
             image = ski.io.imread(getcwd() + "/afhq/" + animal_type + "/" + filename, as_gray = True)
@@ -195,13 +212,16 @@ def main():
             # Flatten matrix to vector
             image = np.reshape(image, -1)
             image_list.append(image)
+            pixelation += image.astype("float")
             counter += 1
             if counter >= max_training_set_size:
                 break
+    
+    avg_pxl = pixelation/counter
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.0)
-    train(G, D, image_list, batch_size = 16)
+    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 16)
 
 if __name__ == "__main__":
     main() 
