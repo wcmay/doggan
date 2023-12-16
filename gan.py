@@ -31,10 +31,10 @@ class GANNet(nn.Module):
     def forward(self, x):
         x = x.float()
         for i in range(self.num_layers - 1):
+            x = self.dropout(x)
             l_0 = self.layers[i]
             x = l_0(x)
             x = self.act(x)
-            x = self.dropout(x)
         l_0 = self.layers[-1]
         x = l_0(x)
         x = self.final_act(x)
@@ -43,16 +43,15 @@ class GANNet(nn.Module):
 # TODO: Write a function that tests the Generator and Discriminator classes
 def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 16): #change batch_size as needed
     
-    #for i in training_images:
-    #    i = (2.0*i)-1.0
     training_set_size = len(training_images)
+    print("Training Set Size: " + str(training_set_size))
 
     dataloader = DataLoader(training_images, batch_size=batch_size, shuffle=True)
 
-    D_learning_rate = 0.0001
-    G_learning_rate = 0.00005
+    D_learning_rate = 0.00006
+    G_learning_rate = 0.00006
 
-    max_epochs = 201
+    max_epochs = 401
     loss = nn.BCELoss()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -62,7 +61,7 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
     D = D.to(device)
 
     D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.0, 0.99))
-    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.0, 0.99))
+    G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.5, 0.99))
 
     D_mean_true_losses = []
     D_mean_fake_losses = []
@@ -84,7 +83,7 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
 
         for i, data in enumerate(dataloader):
 
-            true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.02)
+            true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.07)
             
             # Generate fake image and sample true image
             # Does not need to include last few images outside of batch_size constraints
@@ -120,29 +119,6 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
             D_true_loss.backward()
             D_fake_loss.backward()
             D_optimizer.step()
-
-            """
-            if D_loss > 0.5:
-                true_data = torch_training_images[np.random.randint(training_set_size)]
-                noise = torch.randn(G.layer_sizes[0])
-                fake_data = G(noise).to(device)
-                true_data_D_out = D(true_data)
-                fake_data_D_out = D(fake_data.detach())
-                D_true_loss = loss(true_data_D_out, true_labels)
-                D_fake_loss = loss(fake_data_D_out, false_labels)
-                D_loss = (D_true_loss + D_fake_loss)*0.5
-                D_loss.backward()
-                D_optimizer.step()
-            """
-            """
-            if (i%int(training_set_size/5) == 0):
-                print("Image " + str(i))
-                print("\tTrue Prediction: "+str(true_data_D_out[-1]))
-                print("\tTrue Loss: "+str(D_true_loss.item()))
-                print("\tFake Prediction: "+str(fake_data_D_out[-1]))
-                print("\tFake Loss: "+str(D_fake_loss.item()))
-                print()
-            """
 
             D_epoch_mean_true_loss += D_true_loss.detach().item()
             D_epoch_mean_fake_loss += D_fake_loss.detach().item()
@@ -190,12 +166,12 @@ def image_mse(avg_pxl, fake_batch_pics, image_side_length):
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "corgi"
+    animal_type = "cat"
     max_training_set_size = 4000
     global image_side_length
     image_side_length = 128
-    gen_layers = [32, 512, 512, image_side_length*image_side_length]
-    disc_layers = [image_side_length*image_side_length, 512, 128, 64, 1]
+    gen_layers = [32, 128, 512, 512, 512, image_side_length*image_side_length]
+    disc_layers = [image_side_length*image_side_length, 512, 512, 256, 128, 64, 1]
 
     list_files = listdir(getcwd() + "/afhq/" + animal_type)
 
@@ -220,8 +196,8 @@ def main():
     avg_pxl = pixelation/counter
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
-    D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.0)
-    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 16)
+    D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.1)
+    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 3)
 
 if __name__ == "__main__":
     main() 
