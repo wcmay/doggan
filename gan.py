@@ -78,8 +78,10 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
         D_epoch_mean_fake_loss = 0.0
         G_epoch_mean_loss = 0.0
         num_images_trained = 0
-        batch_pixel = 0
-        epoch_pixel = 0
+
+        image_mse_total = 0
+        fake_data_dev = []
+        fake_to_real_dev = 0
 
         for i, data in enumerate(dataloader):
 
@@ -95,10 +97,18 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
 
             num_images_trained += 1
 
+            # Keep track of standard deviation within fake data
+            fake_list = fake_data.detach().cpu().numpy()
+            fake_data_dev.append(np.std(fake_list))
+
+            #For MSE Loss and STD
             for i in range(batch_size):
-                batch_pixel += (fake_data[i].detach().cpu().numpy()).astype("float")
-            batch_pixel /= batch_size
-            epoch_pixel += batch_pixel
+                f = fake_data[i].detach().cpu().numpy()
+                # Calculate MSE for each image, ultimately averaging for the epoch
+                image_mse_total += image_mse(avg_pxl, f, image_side_length)
+                # Calculate pixelation difference for each fake image compared to the training images
+                # Use this to get standard deviation at end of epoch
+                fake_to_real_dev += (np.mean(f) - np.mean(avg_pxl))**2
 
             G_optimizer.zero_grad()
             D_optimizer.zero_grad()
@@ -132,17 +142,30 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
                     fake_data = G(noise).detach()
                     export_image(0.5*(fake_data.numpy()+1.0), 'gen_' + '{:03}'.format(epoch) + '_' + '{:02}'.format(i))
 
-
         D_mean_true_losses.append(D_epoch_mean_true_loss/num_images_trained)
         D_mean_fake_losses.append(D_epoch_mean_fake_loss/num_images_trained)
         G_mean_losses.append(G_epoch_mean_loss/num_images_trained)
-        epoch_pixel /= (training_set_size/batch_size)
+        
+        # Calculates standard deviation of fake data
+        fake_stan_dev = np.std(fake_data_dev)
+        
+        iterations = training_set_size // batch_size
+        iterations = iterations * batch_size
+        # Average mean squared error between all images in this epoch
+        image_mse_mean = image_mse_total / iterations 
+
+        # Standard deviation of fake images compared to that of training images
+        fake_to_real_dev /= iterations
+        fake_to_real_dev = np.sqrt(fake_to_real_dev)
+    
 
         print("Epoch " + '{:03}'.format(epoch)
                 + ": DTL: " + '{:06.4f}'.format(D_mean_true_losses[-1])
                 + ", DFL: " + '{:06.4f}'.format(D_mean_fake_losses[-1])
                 + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1])
-                + ", PID: " + '{:06.4f}'.format(image_mse(avg_pxl, epoch_pixel, image_side_length))) #PID = pixel intensity difference
+                + ", PID: " + '{:06.4f}'.format(image_mse_mean)
+                + ", FSTD: " + '{:06.4f}'.format(fake_stan_dev)
+                + ", FRSTD: " + '{:06.4f}'.format(fake_to_real_dev)) #PID = pixel intensity difference
 
 
 # Preconditions: 
@@ -166,7 +189,7 @@ def image_mse(avg_pxl, fake_batch_pics, image_side_length):
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "cat"
+    animal_type = "corgi"
     max_training_set_size = 4000
     global image_side_length
     image_side_length = 128
@@ -197,7 +220,7 @@ def main():
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.1)
-    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 3)
+    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 4)
 
 if __name__ == "__main__":
     main() 
