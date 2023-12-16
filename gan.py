@@ -153,7 +153,7 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #chang
         G_mean_losses.append(G_epoch_mean_loss/num_images_trained)
         
         # Calculates standard deviation of fake data
-        fake_stan_dev = np.std(fake_data_dev)
+        fake_stan_dev = np.mean(fake_data_dev)
         
         image_iterations = training_set_size // batch_size
         image_iterations *= batch_size
@@ -169,9 +169,9 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #chang
                 + ": DTL: " + '{:06.4f}'.format(D_mean_true_losses[-1])
                 + ", DFL: " + '{:06.4f}'.format(D_mean_fake_losses[-1])
                 + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1])
-                + ", PID: " + '{:06.4f}'.format(image_mse_mean)
+                + ", PVD: " + '{:06.4f}'.format(image_mse_mean) #PVD = pixel value difference
                 + ", FSTD: " + '{:06.4f}'.format(fake_stan_dev)
-                + ", FRSTD: " + '{:06.4f}'.format(fake_to_real_dev)) #PID = pixel intensity difference
+                + ", FRSTD: " + '{:06.4f}'.format(fake_to_real_dev)) 
 
 
 def evaluate_finished_model(G):
@@ -224,7 +224,6 @@ def main():
     image_list = []
     avg_pxl_arr = np.zeros(image_side_length**2)
     counter = 0
-    pixelation = 0
 
     for filename in list_files:
         if ".jpg" in filename:
@@ -235,17 +234,16 @@ def main():
             image = np.reshape(image, -1)
             image_list.append(image)
             
-            # Keeps track of pixelation array of all pixels and average overal pixelation intensity
+            # Keeps track of pixelation array of all pixels and average overal pixelation value
             avg_pxl_arr = np.add(avg_pxl_arr, image)
-            pixelation += np.mean(image.astype("float"))
             
             counter += 1
             if counter >= max_training_set_size:
                 break
     
     avg_pxl_arr /= counter
+    avg_pxl_float = np.mean(avg_pxl_arr)
 
-    avg_pxl_float = pixelation/counter
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.1)
