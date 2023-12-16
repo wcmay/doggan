@@ -51,7 +51,7 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
     D_learning_rate = 0.00008
     G_learning_rate = 0.00006
 
-    max_epochs = 201
+    max_epochs = 150
     loss = nn.BCELoss()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -67,7 +67,6 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
     D_mean_true_losses = []
     D_mean_fake_losses = []
     G_mean_losses = []
-    #torch_fake_images = []
     
     false_labels = torch.zeros((batch_size, 1), device=device)
 
@@ -110,8 +109,6 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
                 # Calculate pixelation difference for each fake image compared to the training images
                 # Use this to get standard deviation at end of epoch
                 fake_to_real_dev += np.subtract(f, avg_pxl_float)**2
-                # print(f)
-                # print(len(f))
 
             G_optimizer.zero_grad()
             D_optimizer.zero_grad()
@@ -169,10 +166,6 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
                 + ", PVD: " + '{:06.4f}'.format(image_mse_mean) #PVD = pixel value difference
                 + ", FSTD: " + '{:06.4f}'.format(fake_stan_dev)
                 + ", FRSTD: " + '{:06.4f}'.format(fake_to_real_dev)) 
-        
-    # print(D_mean_true_losses)
-    # print(D_mean_fake_losses)
-    # print(G_mean_losses)
 
     x = epochs 
     y1 = D_mean_true_losses 
@@ -203,6 +196,7 @@ def evaluate_finished_model(G, avg_pxl_float, mean_real_img_devs):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     final_gen_imgs = 50
     noise = torch.randn(final_gen_imgs, G.layer_sizes[0], device=device)
+
     fake_data = G(noise).detach()
     counter = 0
     stan_dev = 0
@@ -212,7 +206,6 @@ def evaluate_finished_model(G, avg_pxl_float, mean_real_img_devs):
     for i in fake_data:
         export_image(0.5*(i.numpy()+1.0), 'finished_' + str(counter))
         counter += 1
-        #print(i)
         # Calculates standard deviation of pixel values for each generated image
         f_arr = i.detach().cpu().numpy()
         gen_img_devs += np.std(f_arr)
@@ -235,7 +228,6 @@ def evaluate_finished_model(G, avg_pxl_float, mean_real_img_devs):
           + " \n Mean pixel value of training images: " + '{:06.4f}'.format(avg_pxl_float)
           + " \n Mean of standard deviations of pixel values across training images: " + '{:06.4f}'.format(mean_real_img_devs)
           + " \n Mean of standard deviations of pixel values across generated images: " + '{:06.4f}'.format(mean_gen_img_devs))
-
 
 # Preconditions: 
 #    - i is a float-type grayscale image vector
