@@ -201,8 +201,14 @@ def export_image(i, filename):
     ski.io.imsave(getcwd() + "/exported/" + filename + ".jpg", ski.color.gray2rgb(image), check_contrast=False)
 
 def main():
+<<<<<<< Updated upstream
     # Possible choices: "dog", "cat", "corgi"
     animal_type = "cat"
+=======
+    # CHANGE THESE VARIABLES
+    # Possible choices: "dog", "cat", "corgi", "wild"
+    animal_type = "wild"
+>>>>>>> Stashed changes
     max_training_set_size = 99999
     global image_side_length
     image_side_length = 128
