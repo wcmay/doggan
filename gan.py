@@ -40,8 +40,7 @@ class GANNet(nn.Module):
         x = self.final_act(x)
         return x
 
-# TODO: Write a function that tests the Generator and Discriminator classes
-def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size): #change batch_size as needed
+def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size):
     
     training_set_size = len(training_images)
     print("Training Set Size: " + str(training_set_size))
@@ -79,10 +78,6 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
         G_epoch_mean_loss = 0.0
         num_images_trained = 0
 
-        image_mse_total = 0
-        fake_data_dev = []
-        fake_to_real_dev = 0
-
         for i, data in enumerate(dataloader):
 
             true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.05)
@@ -96,19 +91,6 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
             fake_data = G(noise)
 
             num_images_trained += 1
-
-            # Keep track of standard deviation within fake data
-            fake_list = fake_data.detach().cpu().numpy()
-            fake_data_dev.append(np.std(fake_list))
-
-            #For MSE Loss and STD
-            for i in range(batch_size):
-                f = np.mean(fake_data[i].detach().cpu().numpy())
-                # Calculate MSE for each image, ultimately averaging for the epoch
-                image_mse_total += image_mse(avg_pxl_arr, f, image_side_length)
-                # Calculate pixelation difference for each fake image compared to the training images
-                # Use this to get standard deviation at end of epoch
-                fake_to_real_dev += np.subtract(f, avg_pxl_float)**2
 
             G_optimizer.zero_grad()
             D_optimizer.zero_grad()
@@ -145,51 +127,29 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
         D_mean_true_losses.append(D_epoch_mean_true_loss/num_images_trained)
         D_mean_fake_losses.append(D_epoch_mean_fake_loss/num_images_trained)
         G_mean_losses.append(G_epoch_mean_loss/num_images_trained)
-        
-        # Calculates standard deviation of fake data
-        fake_stan_dev = np.mean(fake_data_dev)
-        
-        image_iterations = training_set_size // batch_size
-        image_iterations *= batch_size
-        # Average mean squared error between all images in this epoch
-        image_mse_mean = image_mse_total / image_iterations 
-
-        # Standard deviation of fake images compared to that of training images
-        fake_to_real_dev /= image_iterations
-        fake_to_real_dev = np.sqrt(fake_to_real_dev)
-    
 
         print("Epoch " + '{:03}'.format(epoch)
                 + ": DTL: " + '{:06.4f}'.format(D_mean_true_losses[-1])
                 + ", DFL: " + '{:06.4f}'.format(D_mean_fake_losses[-1])
-                + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1])
-                + ", PVD: " + '{:06.4f}'.format(image_mse_mean) #PVD = pixel value difference
-                + ", FSTD: " + '{:06.4f}'.format(fake_stan_dev)
-                + ", FRSTD: " + '{:06.4f}'.format(fake_to_real_dev)) 
+                + ", GL: " + '{:06.4f}'.format(G_mean_losses[-1]))
 
+    # Plot the losses
     x = epochs 
     y1 = D_mean_true_losses 
     y2 = D_mean_fake_losses
     y3 = G_mean_losses
-
-    # plotting the points  
+ 
     plt.plot(x, y1, label = "Discriminator True Loss")
     plt.plot(x, y2, label = "Discriminator Fake Loss") 
     plt.plot(x, y3, label = "Generator Loss") 
-  
-    # naming the x axis 
+
     plt.xlabel('Epoch') 
-    # naming the y axis 
     plt.ylabel('Loss') 
-  
-    # giving a title to my graph 
     plt.title('GAN Losses Over Time') 
     plt.legend()
   
-    # function to show the plot 
-    plt.savefig("plots/GAN.png")
+    # Save plot
     plt.savefig("plots/GAN.jpg")
-    #plt.show()
 
 def evaluate_finished_model(G, avg_pxl_float, mean_real_img_devs):
     G.eval()
@@ -225,9 +185,9 @@ def evaluate_finished_model(G, avg_pxl_float, mean_real_img_devs):
     
     print("Standard deviation of final generated images' pixel values compared to the mean of training images' pixel values: " + '{:06.4f}'.format(stan_dev)
           + " \n Mean pixel value of generated images: " + '{:06.4f}'.format(mean_gen_pxl_val)
-          + " \n Mean pixel value of training images: " + '{:06.4f}'.format(avg_pxl_float)
-          + " \n Mean of standard deviations of pixel values across training images: " + '{:06.4f}'.format(mean_real_img_devs)
-          + " \n Mean of standard deviations of pixel values across generated images: " + '{:06.4f}'.format(mean_gen_img_devs))
+          + " \n Mean pixel value of training images: " + '{:06.4f}'.format(avg_pxl_float*2.0 - 1.0)
+          + " \n Mean of standard deviations of pixel values across generated images: " + '{:06.4f}'.format(mean_gen_img_devs)
+          + " \n Mean of standard deviations of pixel values across training images: " + '{:06.4f}'.format(mean_real_img_devs))
 
 # Preconditions: 
 #    - i is a float-type grayscale image vector
@@ -240,15 +200,7 @@ def export_image(i, filename):
     image = image.astype(np.uint8)
     ski.io.imsave(getcwd() + "/exported/" + filename + ".jpg", ski.color.gray2rgb(image), check_contrast=False)
 
-# Comparing pixel intensities of images
-def image_mse(avg_pxl, fake_batch_pics, image_side_length):
-	diff = np.sum((avg_pxl.astype("float") - fake_batch_pics.astype("float")) ** 2)
-	diff /= float(image_side_length ** 2)
-	# lower error is more "similar" in pixel intensity
-	return diff
-
 def main():
-    # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
     animal_type = "cat"
     max_training_set_size = 99999
@@ -286,10 +238,10 @@ def main():
     # Averages standard deviations across all training images
     mean_real_img_devs = img_devs/counter
     
-    # Calculates average image pixelation values element-wise in array of length image_side_length x image_side_length
+    # Calculates average training image pixelation values element-wise in array of length image_side_length x image_side_length
     avg_pxl_arr /= counter
     
-    # Calculates average pixelation value across the array
+    # Calculates average pixelation value across all training images
     avg_pxl_float = np.mean(avg_pxl_arr)
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
