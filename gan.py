@@ -41,7 +41,11 @@ class GANNet(nn.Module):
         return x
 
 # TODO: Write a function that tests the Generator and Discriminator classes
+<<<<<<< Updated upstream
 def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size: int = 16): #change batch_size as needed
+=======
+def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #change batch_size as needed
+>>>>>>> Stashed changes
     
     training_set_size = len(training_images)
     print("Training Set Size: " + str(training_set_size))
@@ -49,7 +53,7 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
     dataloader = DataLoader(training_images, batch_size=batch_size, shuffle=True)
 
     D_learning_rate = 0.00006
-    G_learning_rate = 0.00006
+    G_learning_rate = 0.00008
 
     max_epochs = 201
     loss = nn.BCELoss()
@@ -170,6 +174,22 @@ def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, 
                 + ", FRSTD: " + '{:06.4f}'.format(fake_to_real_dev)) 
 
 
+def evaluate_finished_model(G):
+    G.eval()
+    noise = torch.randn(50, G.layer_sizes[0], device=cpu)
+    fake_data = G(noise).detach()
+    counter = 0
+    for i in fake_data:
+        export_image(0.5*(i.numpy()+1.0), 'finished_' + str(counter))
+        counter += 1
+
+
+
+
+
+
+
+
 # Preconditions: 
 #    - i is a float-type grayscale image vector
 #    - i must be NUMPY format
@@ -191,8 +211,8 @@ def image_mse(avg_pxl, fake_batch_pics, image_side_length):
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "corgi"
-    max_training_set_size = 4000
+    animal_type = "cat"
+    max_training_set_size = 99999
     global image_side_length
     image_side_length = 128
     gen_layers = [32, 128, 512, 512, 512, image_side_length*image_side_length]
@@ -229,7 +249,12 @@ def main():
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.1)
-    train(G, D, image_list, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size = 4)
+<<<<<<< Updated upstream
+    train(G, D, image_list, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size = 100)
+    evaluate_finished_model(G, avg_pxl_arr, avg_pxl_float)
+=======
+    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 100)
+>>>>>>> Stashed changes
 
 if __name__ == "__main__":
     main() 
