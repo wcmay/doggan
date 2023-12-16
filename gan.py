@@ -52,7 +52,7 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
     D_learning_rate = 0.0001
     G_learning_rate = 0.00005
 
-    max_epochs = 201
+    max_epochs = 500
     loss = nn.BCELoss()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
