@@ -41,7 +41,7 @@ class GANNet(nn.Module):
         return x
 
 # TODO: Write a function that tests the Generator and Discriminator classes
-def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 16): #change batch_size as needed
+def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size: int = 16): #change batch_size as needed
     
     training_set_size = len(training_images)
     print("Training Set Size: " + str(training_set_size))
@@ -103,12 +103,14 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
 
             #For MSE Loss and STD
             for i in range(batch_size):
-                f = fake_data[i].detach().cpu().numpy()
+                f = np.mean(fake_data[i].detach().cpu().numpy())
                 # Calculate MSE for each image, ultimately averaging for the epoch
-                image_mse_total += image_mse(avg_pxl, f, image_side_length)
+                image_mse_total += image_mse(avg_pxl_arr, f, image_side_length)
                 # Calculate pixelation difference for each fake image compared to the training images
                 # Use this to get standard deviation at end of epoch
-                fake_to_real_dev += (np.mean(f) - np.mean(avg_pxl))**2
+                fake_to_real_dev += np.subtract(f, avg_pxl_float)**2
+                # print(f)
+                # print(len(f))
 
             G_optimizer.zero_grad()
             D_optimizer.zero_grad()
@@ -149,13 +151,13 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size: int = 1
         # Calculates standard deviation of fake data
         fake_stan_dev = np.std(fake_data_dev)
         
-        iterations = training_set_size // batch_size
-        iterations = iterations * batch_size
+        image_iterations = training_set_size // batch_size
+        image_iterations *= batch_size
         # Average mean squared error between all images in this epoch
-        image_mse_mean = image_mse_total / iterations 
+        image_mse_mean = image_mse_total / image_iterations 
 
         # Standard deviation of fake images compared to that of training images
-        fake_to_real_dev /= iterations
+        fake_to_real_dev /= image_iterations
         fake_to_real_dev = np.sqrt(fake_to_real_dev)
     
 
@@ -200,6 +202,7 @@ def main():
 
     list_files = natsorted(list_files)
     image_list = []
+    avg_pxl_arr = np.zeros(image_side_length**2)
     counter = 0
     pixelation = 0
 
@@ -211,16 +214,22 @@ def main():
             # Flatten matrix to vector
             image = np.reshape(image, -1)
             image_list.append(image)
-            pixelation += image.astype("float")
+            
+            # Keeps track of pixelation array of all pixels and average overal pixelation intensity
+            avg_pxl_arr = np.add(avg_pxl_arr, image)
+            pixelation += np.mean(image.astype("float"))
+            
             counter += 1
             if counter >= max_training_set_size:
                 break
     
-    avg_pxl = pixelation/counter
+    avg_pxl_arr /= counter
+
+    avg_pxl_float = pixelation/counter
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.1)
-    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 4)
+    train(G, D, image_list, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size = 4)
 
 if __name__ == "__main__":
     main() 
