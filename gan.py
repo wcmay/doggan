@@ -214,14 +214,16 @@ def main():
             image = np.reshape(image, -1)
             image_list.append(image)
             
-            # Keeps track of pixelation array of all pixels and average overal pixelation value
+            # Adds pixelations values element-wise for all training images used
             avg_pxl_arr = np.add(avg_pxl_arr, image)
             
             counter += 1
             if counter >= max_training_set_size:
                 break
     
+    # Calculates average image pixelation values element-wise in array of length image_side_length x image_side_length
     avg_pxl_arr /= counter
+    # Calculates average pixelation value across the array
     avg_pxl_float = np.mean(avg_pxl_arr)
 
 
