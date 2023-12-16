@@ -41,7 +41,11 @@ class GANNet(nn.Module):
         return x
 
 # TODO: Write a function that tests the Generator and Discriminator classes
+<<<<<<< Updated upstream
 def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size: int = 16): #change batch_size as needed
+=======
+def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #change batch_size as needed
+>>>>>>> Stashed changes
     
     training_set_size = len(training_images)
     print("Training Set Size: " + str(training_set_size))
@@ -245,8 +249,12 @@ def main():
 
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.1)
+<<<<<<< Updated upstream
     train(G, D, image_list, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size = 100)
     evaluate_finished_model(G, avg_pxl_arr, avg_pxl_float)
+=======
+    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 100)
+>>>>>>> Stashed changes
 
 if __name__ == "__main__":
     main() 
