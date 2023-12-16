@@ -1,5 +1,5 @@
 
-import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import torch.nn as nn
 import torch.optim as optim
@@ -41,21 +41,17 @@ class GANNet(nn.Module):
         return x
 
 # TODO: Write a function that tests the Generator and Discriminator classes
-<<<<<<< Updated upstream
-def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size: int = 16): #change batch_size as needed
-=======
-def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #change batch_size as needed
->>>>>>> Stashed changes
+def train(G, D, training_images, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size): #change batch_size as needed
     
     training_set_size = len(training_images)
     print("Training Set Size: " + str(training_set_size))
 
     dataloader = DataLoader(training_images, batch_size=batch_size, shuffle=True)
 
-    D_learning_rate = 0.00006
-    G_learning_rate = 0.00008
+    D_learning_rate = 0.00008
+    G_learning_rate = 0.00006
 
-    max_epochs = 201
+    max_epochs = 10
     loss = nn.BCELoss()
 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -67,6 +63,7 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #chang
     D_optimizer = optim.Adam(D.parameters(), lr=D_learning_rate, betas=(0.0, 0.99))
     G_optimizer = optim.Adam(G.parameters(), lr=G_learning_rate, betas=(0.5, 0.99))
 
+    epochs = []
     D_mean_true_losses = []
     D_mean_fake_losses = []
     G_mean_losses = []
@@ -76,7 +73,7 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #chang
 
     for epoch in range(max_epochs):
 
-        #print("\nEPOCH " + str(epoch) + "\n")
+        epochs.append(epoch)
 
         D_epoch_mean_true_loss = 0.0
         D_epoch_mean_fake_loss = 0.0
@@ -89,7 +86,7 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #chang
 
         for i, data in enumerate(dataloader):
 
-            true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.07)
+            true_labels = 1-torch.abs(torch.randn((batch_size, 1), device=device)*0.05)
             
             # Generate fake image and sample true image
             # Does not need to include last few images outside of batch_size constraints
@@ -172,22 +169,72 @@ def train(G, D, training_images, avg_pxl, image_side_length, batch_size): #chang
                 + ", PVD: " + '{:06.4f}'.format(image_mse_mean) #PVD = pixel value difference
                 + ", FSTD: " + '{:06.4f}'.format(fake_stan_dev)
                 + ", FRSTD: " + '{:06.4f}'.format(fake_to_real_dev)) 
+        
+    # print(D_mean_true_losses)
+    # print(D_mean_fake_losses)
+    # print(G_mean_losses)
 
+    x = epochs 
+    y1 = D_mean_true_losses 
+    y2 = D_mean_fake_losses
+    y3 = G_mean_losses
 
-def evaluate_finished_model(G):
+    # plotting the points  
+    plt.plot(x, y1, label = "Discriminator True Loss")
+    plt.plot(x, y2, label = "Discriminator Fake Loss") 
+    plt.plot(x, y3, label = "Generator Loss") 
+  
+    # naming the x axis 
+    plt.xlabel('Epoch') 
+    # naming the y axis 
+    plt.ylabel('Loss') 
+  
+    # giving a title to my graph 
+    plt.title('GAN Losses Over Time') 
+    plt.legend()
+  
+    # function to show the plot 
+    plt.savefig("plots/GAN.png")
+    plt.savefig("plots/GAN.jpg")
+    #plt.show()
+
+def evaluate_finished_model(G, avg_pxl_float, mean_real_img_devs):
     G.eval()
-    noise = torch.randn(50, G.layer_sizes[0], device=cpu)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    final_gen_imgs = 50
+    noise = torch.randn(final_gen_imgs, G.layer_sizes[0], device=device)
     fake_data = G(noise).detach()
     counter = 0
+    stan_dev = 0
+    gen_img_devs = 0
+    mean_gen_pxl_val = 0
+    
     for i in fake_data:
         export_image(0.5*(i.numpy()+1.0), 'finished_' + str(counter))
         counter += 1
+        #print(i)
+        # Calculates standard deviation of pixel values for each generated image
+        f_arr = i.detach().cpu().numpy()
+        gen_img_devs += np.std(f_arr)
 
-
-
-
-
-
+        # Accumulates calculations for standard deviations comparing each generated image to average training image
+        f_float = np.mean(f_arr)
+        mean_gen_pxl_val += f_float
+        stan_dev += np.subtract(f_float, avg_pxl_float)**2
+    
+    # Averages pixel value standard deviations across all generated images
+    mean_gen_img_devs = gen_img_devs/final_gen_imgs
+    mean_gen_pxl_val /= final_gen_imgs
+   
+    # Calculates standard deviation of fake images compared to average training image
+    stan_dev /= final_gen_imgs
+    stan_dev = np.sqrt(stan_dev)
+    
+    print("Standard deviation of final generated images' pixel values compared to the mean of training images' pixel values: " + '{:06.4f}'.format(stan_dev)
+          + " \n Mean pixel value of generated images: " + '{:06.4f}'.format(mean_gen_pxl_val)
+          + " \n Mean pixel value of training images: " + '{:06.4f}'.format(avg_pxl_float)
+          + " \n Mean of standard deviations of pixel values across training images: " + '{:06.4f}'.format(mean_real_img_devs)
+          + " \n Mean of standard deviations of pixel values across generated images: " + '{:06.4f}'.format(mean_gen_img_devs))
 
 
 # Preconditions: 
@@ -211,11 +258,11 @@ def image_mse(avg_pxl, fake_batch_pics, image_side_length):
 def main():
     # CHANGE THESE VARIABLES
     # Possible choices: "dog", "cat", "corgi"
-    animal_type = "cat"
+    animal_type = "corgi"
     max_training_set_size = 99999
     global image_side_length
     image_side_length = 128
-    gen_layers = [32, 128, 512, 512, 512, image_side_length*image_side_length]
+    gen_layers = [32, 512, 512, 512, image_side_length*image_side_length]
     disc_layers = [image_side_length*image_side_length, 512, 512, 256, 128, 64, 1]
 
     list_files = listdir(getcwd() + "/afhq/" + animal_type)
@@ -223,6 +270,7 @@ def main():
     list_files = natsorted(list_files)
     image_list = []
     avg_pxl_arr = np.zeros(image_side_length**2)
+    img_devs = 0
     counter = 0
 
     for filename in list_files:
@@ -234,27 +282,29 @@ def main():
             image = np.reshape(image, -1)
             image_list.append(image)
             
-            # Adds pixelations values element-wise for all training images used
+            # Adds pixelations values element-wise for all training images
             avg_pxl_arr = np.add(avg_pxl_arr, image)
+            
+            # Accumulates standard deviation of pixel values for each training image
+            img_devs += np.std(image)
             
             counter += 1
             if counter >= max_training_set_size:
                 break
+    # Averages standard deviations across all training images
+    mean_real_img_devs = img_devs/counter
     
     # Calculates average image pixelation values element-wise in array of length image_side_length x image_side_length
     avg_pxl_arr /= counter
+    
     # Calculates average pixelation value across the array
     avg_pxl_float = np.mean(avg_pxl_arr)
 
-
     G = GANNet(gen_layers, nn.LeakyReLU(), nn.Tanh(), drop_prob=0.0)
     D = GANNet(disc_layers, nn.LeakyReLU(), nn.Sigmoid(), drop_prob=0.1)
-<<<<<<< Updated upstream
-    train(G, D, image_list, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size = 100)
-    evaluate_finished_model(G, avg_pxl_arr, avg_pxl_float)
-=======
-    train(G, D, image_list, avg_pxl, image_side_length, batch_size = 100)
->>>>>>> Stashed changes
+
+    train(G, D, image_list, avg_pxl_arr, avg_pxl_float, image_side_length, batch_size = 4)
+    evaluate_finished_model(G, avg_pxl_float, mean_real_img_devs)
 
 if __name__ == "__main__":
     main() 
